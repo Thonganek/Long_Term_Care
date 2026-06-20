@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#5db8b2">
+  <title>ระบบคัดกรองและดูแลภาวะพึ่งพิงผู้สูงอายุ</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    /* ===== BLUE→TEAL GRADIENT PALETTE (OVCCA STYLE) ===== */
+    :root{--teal:#0891b2;--dark:#0e7490;--mint:#f0f9ff;--ink:#0c2340;--muted:#5a7a98;--line:#bae6fd;--bg:#f0f9ff;--paper:#ffffff;--red:#dc2626;--yellow:#ca8a04;--green:#16a34a;--blue:#1565c0;--r:18px;--shadow:0 12px 32px rgba(8,145,178,.12)}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "Leelawadee UI",Tahoma,system-ui,sans-serif}
+    .app{min-height:100vh;display:grid;grid-template-columns:270px 1fr}
+    /* ===== SIDEBAR — dark navy blue ===== */
+    aside{height:100vh;position:sticky;top:0;padding:23px 15px;background:linear-gradient(160deg,#0a1628,#0f2744 55%,#0e3358);color:#e0f2fe;overflow:auto;border-right:1px solid #0e2540}
+    .brand{display:flex;gap:11px;align-items:center;padding:3px 8px 21px;border-bottom:1px solid #163d60}
+    .mark{width:44px;height:44px;display:grid;place-items:center;border-radius:14px;background:linear-gradient(135deg,#1565c0,#0891b2);font-size:23px;box-shadow:0 4px 12px rgba(8,145,178,.45)}
+    .brand b{display:block;font-size:17px;color:#e0f2fe}
+    .brand small{color:#7dd3fc;font-size:11px}
+    nav{margin-top:18px}
+    .nav-label{margin:0 10px 6px;color:#7dd3fc60;font-size:10px;font-weight:900;letter-spacing:.1em}
+    .nav{display:flex;gap:10px;align-items:center;width:100%;margin:3px 0;padding:11px 13px;border:0;border-radius:13px;background:transparent;color:#e0f2fe;text-align:left;font-weight:800;cursor:pointer;transition:background .15s}
+    .nav:hover{background:#ffffff18}
+    .nav.active{background:linear-gradient(90deg,#ffffff18,#ffffff0a);color:#e0f2fe;box-shadow:inset 3px 0 0 #38bdf8}
+    .nav i{font-style:normal;width:20px;text-align:center;color:#7dd3fc}
+    .side-note{margin:20px 3px 0;padding:14px;border:1px solid #163d60;border-radius:15px;background:#0a1628;color:#7dd3fc;font-size:12px}
+    .side-note b{display:block;color:#e0f2fe;margin-bottom:4px}
+    /* ===== MAIN ===== */
+    main{min-width:0;padding:27px clamp(17px,3vw,42px) 42px}
+    .top{display:flex;justify-content:space-between;gap:15px;margin-bottom:24px}
+    .eyebrow{color:var(--teal);font-size:11px;font-weight:900;letter-spacing:.08em}
+    .top h1{margin:4px 0 2px;font-size:clamp(24px,3vw,32px);line-height:1.2;color:var(--ink)}
+    .top p{margin:0;color:var(--muted);font-size:13px}
+    .sync{display:flex;align-items:center;gap:7px;height:max-content;padding:8px 12px;border:1px solid var(--line);border-radius:99px;background:#fff;color:var(--dark);font-size:12px;font-weight:800;white-space:nowrap}
+    .dot{width:8px;height:8px;border-radius:50%;background:#e8a060}
+    /* ===== SECTIONS ===== */
+    .section{display:none;animation:in .2s ease}.section.active{display:block}
+    @keyframes in{from{opacity:.15;transform:translateY(4px)}to{opacity:1;transform:none}}
+    /* ===== HERO — blue→teal gradient (OVCCA style) ===== */
+    .hero{position:relative;overflow:hidden;display:flex;justify-content:space-between;gap:15px;margin-bottom:16px;padding:24px 28px;border-radius:var(--r);background:linear-gradient(112deg,#1565c0,#0891b2 50%,#0d9488);color:#f0f9ff;box-shadow:var(--shadow)}
+    .hero:after{content:"";position:absolute;width:200px;height:200px;right:-45px;bottom:-110px;border:30px solid #ffffff22;border-radius:50%}
+    .hero h2{position:relative;margin:0 0 5px;font-size:21px;color:#f0f9ff}
+    .hero p{position:relative;margin:0;max-width:700px;color:#bae6fd;font-size:13px}
+    .hero span{position:relative;align-self:start;padding:6px 10px;border:1px solid #38bdf850;border-radius:99px;background:#ffffff30;font-size:11px;font-weight:800;color:#f0f9ff;white-space:nowrap}
+    /* ===== HERO CHIPS (dashboard) ===== */
+    .hero-chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px;position:relative}
+    .hero-chip{padding:5px 10px;border-radius:99px;background:#ffffff30;border:1px solid #38bdf845;font-size:12px;font-weight:800;color:#f0f9ff}
+    /* ===== GRID ===== */
+    .grid{display:grid;gap:16px}
+    .six-cols{grid-template-columns:repeat(6,1fr);margin-bottom:16px}
+    .metrics{grid-template-columns:repeat(4,1fr);margin-bottom:16px}
+    .two{grid-template-columns:minmax(0,1.3fr) minmax(290px,.7fr)}
+    .screen-grid{grid-template-columns:minmax(0,1.35fr) minmax(285px,.65fr)}
+    .three{grid-template-columns:repeat(3,1fr)}
+    /* ===== CARD ===== */
+    .card{padding:20px;border:1px solid var(--line);border-radius:var(--r);background:var(--paper);box-shadow:0 5px 18px rgba(8,145,178,.07)}
+    /* ===== METRIC CARD ===== */
+    .metric{min-height:126px;position:relative;overflow:hidden}
+    .metric:after{content:"";position:absolute;right:-18px;bottom:-26px;width:88px;height:88px;border-radius:50%;background:var(--mint);opacity:.9}
+    .metric .label{position:relative;color:var(--muted);font-size:12px;font-weight:800}
+    .metric .number{position:relative;margin-top:5px;font-size:33px;font-weight:950;letter-spacing:-1px;color:var(--ink)}
+    .metric .sub{position:relative;color:var(--teal);font-size:11px}
+    .metric.warn:after{background:#fff8e5}.metric.warn .sub{color:#b08030}
+    .metric.danger:after{background:#fef0f0}.metric.danger .sub{color:#c07878}
+    .metric.sky:after{background:#e8f4fe}.metric.sky .sub{color:#4a78c0}
+    .metric.rose:after{background:#fce8f2}.metric.rose .sub{color:#c06090}
+    /* ===== UPCOMING / RISK / QUICK ROW ===== */
+    .quick-row{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:16px}
+    .upcoming-item{display:flex;justify-content:space-between;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--line);gap:10px}
+    .upcoming-item:last-child{border:0}
+    .upcoming-item b{display:block;font-size:15px;margin-bottom:2px;color:var(--ink)}
+    .upcoming-item small{display:block;color:var(--muted);font-size:13px}
+    .upcoming-time{text-align:right;flex-shrink:0}
+    .dash-divider{margin:16px 0 0}
+    /* ===== H3 / HEAD / HINT / LEAD ===== */
+    h3{margin:0 0 4px;font-size:17px;color:var(--ink)}
+    .lead{margin:0 0 14px;color:var(--muted);font-size:12px}
+    .head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:13px}
+    .hint{color:var(--muted);font-size:11px}
+    /* ===== BARS ===== */
+    .bars{display:grid;gap:14px}
+    .bar{display:grid;grid-template-columns:136px 1fr 26px;gap:9px;align-items:center;font-size:12px}
+    .track{height:10px;overflow:hidden;border-radius:99px;background:#bae6fd}
+    .fill{height:100%;border-radius:99px}
+    .count{text-align:right;font-weight:900}
+    /* ===== STAT LIST ===== */
+    .stat-list{display:grid;gap:8px}
+    .stat{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:11px 13px;border:1px solid var(--line);border-radius:12px;font-size:12px;font-weight:700;background:#f7fbff}
+    .stat b{font-size:17px;color:var(--dark)}
+    /* ===== STATE BADGES — pastel ===== */
+    .state{display:inline-flex;gap:6px;align-items:center;padding:4px 9px;border-radius:99px;font-size:11px;font-weight:900;white-space:nowrap}
+    .red{background:#fde8e8;color:#b85858}
+    .yellow{background:#fdf5df;color:#9a7020}
+    .green{background:#e5f8ee;color:#2a9858}
+    .blue{background:#e5f0fd;color:#4070b8}
+    .gray{background:#edf3f2;color:#5f8088}
+    /* ===== ACTIVITY ===== */
+    .activity{display:grid;grid-template-columns:32px 1fr auto;gap:9px;padding:11px 0;border-bottom:1px solid #bae6fd}
+    .activity:last-child{border:0}
+    .activity i{display:grid;place-items:center;width:32px;height:32px;border-radius:11px;background:#e0f2fe;font-style:normal;border:1px solid #7dd3fc}
+    .activity b{display:block;font-size:13px}
+    .activity small{color:var(--muted);font-size:11px}
+    .activity time{color:var(--muted);font-size:10px;white-space:nowrap}
+    .empty{padding:27px 15px;text-align:center;color:var(--muted);font-size:13px}
+    .empty i{display:block;margin-bottom:4px;font-size:24px;font-style:normal}
+    /* ===== FORM ===== */
+    .form-section{padding:16px 0;border-top:1px solid var(--line)}.form-section:first-child{padding-top:0;border:0}
+    .form-section h3{font-size:15px}.form-section p{margin:0 0 12px;color:var(--muted);font-size:12px}
+    .fields{display:grid;grid-template-columns:repeat(2,1fr);gap:11px}
+    .fields.three-cols{grid-template-columns:repeat(3,1fr)}.full{grid-column:1/-1}
+    label{display:block;margin-bottom:4px;color:#0e4b7a;font-size:12px;font-weight:850}
+    .req{color:var(--red)}
+    input,select,textarea{width:100%;min-height:41px;padding:8px 10px;border:1px solid #7dd3fc;border-radius:10px;outline:0;background:#fff;color:var(--ink)}
+    textarea{min-height:76px;resize:vertical}
+    input:focus,select:focus,textarea:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(8,145,178,.18)}
+    .checks{display:flex;flex-wrap:wrap;gap:7px 14px}
+    .checks label{display:flex;gap:5px;align-items:center;margin:0;font-weight:650}
+    .checks input{width:auto;min-height:auto;accent-color:var(--teal)}
+    .adl-note{padding:10px 12px;border-left:4px solid var(--teal);border-radius:0 10px 10px 0;background:#e0f2fe;color:#0c2340;font-size:11px}
+    .adl{display:grid;gap:9px}.adl-item{padding:12px;border:1px solid var(--line);border-radius:13px;background:#f7fbff}
+    .adl-head{display:flex;justify-content:space-between;gap:10px;margin-bottom:7px}
+    .adl-head b{font-size:12px}.adl-head span{color:var(--muted);font-size:10px;text-align:right}
+    .options{display:flex;flex-wrap:wrap;gap:6px}.option{position:relative}
+    .option input{position:absolute;opacity:0}
+    .option label{margin:0;padding:5px 9px;border:1px solid #7dd3fc;border-radius:9px;background:#f0f9ff;color:#0e4b7a;font-size:10px;cursor:pointer;transition:all .13s}
+    .option input:checked+label{border-color:var(--teal);background:#bae6fd;color:var(--dark);box-shadow:inset 0 0 0 1px var(--teal)}
+    /* ===== BUTTONS ===== */
+    .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:15px}
+    .btn{display:inline-flex;justify-content:center;align-items:center;gap:6px;min-height:40px;padding:9px 14px;border:0;border-radius:11px;background:var(--teal);color:white;font-size:12px;font-weight:900;box-shadow:0 6px 14px rgba(8,145,178,.35);cursor:pointer;transition:background .15s,box-shadow .15s}
+    .btn:hover{background:var(--dark);box-shadow:0 8px 18px rgba(14,116,144,.4)}
+    .btn.secondary{background:#e0f2fe;color:#0c2340;box-shadow:none}
+    .btn.secondary:hover{background:#bae6fd}
+    .btn.outline{border:1px solid #7dd3fc;background:#fff;color:var(--teal);box-shadow:none}
+    .btn.outline:hover{background:#f0f9ff}
+    .btn.orange{background:#e8956a}.btn.orange:hover{background:#d57a52}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    /* ===== RESULT BOX ===== */
+    .result{position:sticky;top:20px;padding:20px;border:1px solid #7dd3fc;border-radius:18px;background:linear-gradient(145deg,#f0f9ff,#e0f2fe)}
+    .score-label{color:#0e7490;font-size:11px;font-weight:900}
+    .score{margin:1px 0;font-size:51px;line-height:1;font-weight:950;color:var(--dark)}
+    .score small{font-size:16px}.result h3{margin:10px 0 3px}.result p{margin:0;color:#0e4b7a;font-size:12px}
+    .path{margin-top:14px;padding-top:12px;border-top:1px solid #7dd3fc}
+    .path b{font-size:12px}.path ul{display:grid;gap:6px;margin:7px 0 0;padding:0;list-style:none}
+    .path li{position:relative;padding-left:17px;color:#0e4b7a;font-size:11px}
+    .path li:before{content:"✓";position:absolute;left:0;color:var(--teal);font-weight:900}
+    .clinical{margin-top:12px;padding:10px 12px;border:1px solid #e8d888;border-radius:11px;background:#fffce8;color:#7a6020;font-size:10px}
+    /* ===== CASES TABLE ===== */
+    .filters{display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin-bottom:13px}
+    .filter{min-width:180px;flex:1}.filter input,.filter select{min-height:37px}
+    .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px}
+    .table{width:100%;min-width:780px;border-collapse:collapse;background:#fff}
+    .table th{padding:11px;text-align:left;border-bottom:1px solid var(--line);background:#f0f9ff;color:#0e4b7a;font-size:11px}
+    .table td{padding:11px;border-bottom:1px solid #bae6fd;vertical-align:middle;font-size:12px}
+    .table tr:last-child td{border:0}
+    .table tr:hover td{background:#f0f9ff}
+    .status-select{min-height:30px;padding:4px 7px;font-size:11px}
+    /* ===== REQUEST / ROUTE ===== */
+    .route{padding:13px;border:1px dashed #7dd3fc;border-radius:13px;background:#f0f9ff;color:#0c2340;font-size:12px}
+    .route b{display:block;color:var(--dark)}
+    /* ===== NETWORK / CONFIG ===== */
+    .config{display:flex;justify-content:space-between;align-items:start;gap:16px;padding:16px;border:1px solid #7dd3fc;border-radius:16px;background:#f0f9ff}
+    .config h3{color:var(--dark)}.config p{margin:0;color:#0e4b7a;font-size:12px}
+    .code{display:block;overflow:auto;margin-top:8px;padding:8px;border-radius:9px;background:#0a1628;color:#7dd3fc;font:11px Consolas,monospace;white-space:nowrap}
+    .network{padding:14px;border:1px solid var(--line);border-radius:14px;background:#fafcfc}
+    .network b{display:block;font-size:13px;color:var(--dark)}.network span{display:block;margin-top:3px;color:var(--muted);font-size:11px}
+    /* ===== TOAST ===== */
+    .toast{position:fixed;right:20px;bottom:20px;z-index:20;max-width:400px;padding:13px 16px;border-radius:13px;background:#0e7490;color:white;font-size:12px;font-weight:700;box-shadow:0 14px 28px rgba(14,116,144,.35);opacity:0;transform:translateY(10px);pointer-events:none;transition:.22s}
+    .toast.show{opacity:1;transform:none}.toast.error{background:#dc2626}
+    /* ===== VISIT LOG ===== */
+    .visit-list{display:grid;gap:11px}.visit-item{padding:15px;border:1px solid var(--line);border-radius:14px;background:#fafefe}
+    .v-head{display:flex;justify-content:space-between;gap:10px;margin-bottom:9px;flex-wrap:wrap}
+    .v-head b{font-size:16px;color:var(--ink)}.v-body{color:var(--muted);font-size:15px;line-height:1.65}
+    .v-tag{display:inline-flex;gap:5px;align-items:center;padding:4px 9px;border-radius:99px;font-size:13px;font-weight:800;background:#edf3f2;color:var(--muted)}
+    .v-better{background:#e5f8ee;color:#2a9858}.v-worse{background:#fde8e8;color:#b05858}.v-same{background:#edf3f2;color:#5f8088}
+    /* ===== REPORT ===== */
+    .area-stats{display:grid;gap:9px}
+    .area-row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:11px 13px;border:1px solid var(--line);border-radius:12px;font-size:15px;font-weight:700;background:#fafcfc}
+    .rpt-mini{display:flex;gap:7px;flex-wrap:wrap}.rpt-mini span{padding:3px 9px;border-radius:99px;font-size:13px;font-weight:800}
+    .rpt-area-name{font-size:15px;font-weight:800;color:var(--ink)}
+    /* ===== MAP ===== */
+    .map-shell{overflow:hidden;border:1px solid var(--line);border-radius:15px;background:#f0f9ff}
+    .care-map{height:510px;width:100%}
+    .map-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:12px;background:#f7fbff}
+    .map-key{display:flex;flex-wrap:wrap;gap:9px;font-size:15px;font-weight:800}
+    .map-key span{display:flex;align-items:center;gap:5px}.map-key i{width:11px;height:11px;border-radius:50%}
+    .map-list{display:grid;gap:9px}
+    .map-person{display:flex;justify-content:space-between;gap:10px;padding:13px;border:1px solid var(--line);border-radius:13px;background:#fff}
+    .map-person b{font-size:15px}.map-person small{display:block;color:var(--muted);font-size:13px}
+    /* ===== RESPONSIVE ===== */
+    @media(max-width:1200px){.six-cols{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:1080px){.metrics{grid-template-columns:repeat(2,1fr)}.two,.screen-grid{grid-template-columns:1fr}.result{position:relative;top:auto}}
+    @media(max-width:760px){.app{display:block}aside{position:relative;height:auto;padding:14px}.brand{padding-bottom:12px}.side-note{display:none}nav{display:flex;overflow:auto;gap:4px;margin-top:10px}.nav-label{display:none}.nav{width:auto;min-width:max-content;margin:0;padding:9px 10px;font-size:11px}.nav i{width:auto}.top{margin-bottom:18px}main{padding:20px 13px 30px}.hero span{display:none}.hero-chips{display:none}.card{padding:15px}.fields,.fields.three-cols,.three{grid-template-columns:1fr}.six-cols{grid-template-columns:repeat(2,1fr)}.metrics{grid-template-columns:repeat(2,1fr)}.result{margin-bottom:0}.bar{grid-template-columns:110px 1fr 22px}.config{display:block}.config .btn{margin-top:12px}.quick-row .btn{flex:1}}
+    @media(max-width:420px){.top{display:block}.sync{display:inline-flex;margin-top:10px}.options{display:grid;grid-template-columns:1fr}.option label{text-align:left}.btn{width:100%}}
+    /* ===== PRINT ===== */
+    @media print{aside,.sync,.actions,.filters,.toast,.hero span,.hero-chips,.side-note,.eyebrow,.quick-row{display:none!important}.app{display:block}main{padding:8px}.section{display:none!important}#dashboard.section{display:block!important}.top{margin-bottom:8px}.card{box-shadow:none!important;border:1px solid #ccc!important}.table th,.table td{font-size:13px!important}.metric .number{font-size:26px!important}}
+    /* ===== FONT SIZES ===== */
+    body{font-size:17px;line-height:1.72}
+    .top p,.hero p{font-size:16px}.nav{font-size:15px}.side-note{font-size:15px}
+    .metric .label,label{font-size:15px}.metric .sub,.lead,.form-section p{font-size:15px}.hint{font-size:14px}
+    input,select,textarea{min-height:47px;font-size:16px}.btn{min-height:47px;font-size:15px}
+    .table th{font-size:14px}.table td{font-size:15px}
+    .adl-head b{font-size:15px}.adl-head span{font-size:14px}.option label{font-size:14px}
+    .result p,.path li{font-size:15px}.clinical{font-size:14px}.card h3{font-size:21px}
+    .activity b{font-size:15px}.activity small{font-size:14px}.activity time{font-size:13px}
+    .stat{font-size:15px}.stat b{font-size:19px}.bar{font-size:14px}.count{font-size:14px}
+    .eyebrow{font-size:13px}.brand b{font-size:18px}.brand small{font-size:13px}
+    .score-label{font-size:14px}.score{font-size:56px}.score small{font-size:19px}
+    .nav-label{font-size:12px}.status-select{min-height:36px;padding:6px 8px;font-size:14px}
+    .toast{font-size:14px}.route{font-size:15px}.route b{font-size:15px}.config p{font-size:15px}
+    .path b{font-size:14px}.network b{font-size:16px}.network span{font-size:14px}
+    .adl-note{font-size:13px}.state{font-size:12px}.empty{font-size:15px}.metric .number{font-size:36px}
+    .upcoming-item b{font-size:15px}.upcoming-item small{font-size:13px}.hero-chip{font-size:13px}
+    @media(max-width:760px){body{font-size:16px}.care-map{height:420px}.map-toolbar{align-items:flex-start}.table td{font-size:14px}.visit-item{padding:13px}.area-row{font-size:14px}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand"><div class="mark">♿</div><div><b>ระบบดูแลภาวะพึ่งพิง</b><small>ผู้สูงอายุ · คัดกรอง · ดูแล · ติดตาม</small></div></div>
+    <nav>
+      <p class="nav-label">เมนูระบบ</p>
+      <button class="nav active" data-page="dashboard"><i>▦</i>ภาพรวมรายงานสถิติ</button>
+      <button class="nav" data-page="cases"><i>☷</i>ทะเบียนและติดตามเคส</button>
+      <button class="nav" data-page="visits"><i>⌂</i>บันทึกเยี่ยมบ้าน</button>
+      <button class="nav" data-page="screen"><i>▤</i>คัดกรองภาวะพึ่งพิง</button>
+      <button class="nav" data-page="requests"><i>↗</i>ประสานบริการ</button>
+      <button class="nav" data-page="map"><i>⌖</i>แผนที่ติดตามเคส</button>
+      <button class="nav" data-page="network"><i>⌘</i>เครือข่ายและการเชื่อมต่อ</button>
+    </nav>
+    <div class="side-note"><b>ADL 10 กิจกรรม · 20 คะแนน</b>0–4 ติดเตียง · 5–11 ติดบ้าน · 12–20 ติดสังคม ผลคัดกรองเป็นเครื่องมือสนับสนุนการตัดสินใจของบุคลากรวิชาชีพ</div>
+  </aside>
+  <main>
+
+    <!-- ==================== DASHBOARD ==================== -->
+    <section id="dashboard" class="section active">
+      <div class="hero">
+        <div>
+          <h2>ระบบดูแลผู้สูงอายุภาวะพึ่งพิง · สสจ.สตูล</h2>
+          <p>คัดกรอง ADL Barthel Index · บันทึกเยี่ยมบ้านรายราย · ประสานบริการเครือข่าย · ติดตามเคสผ่านแผนที่ GPS · ส่งออกรายงาน CSV · เชื่อมต่อ Google Sheets</p>
+          <div class="hero-chips">
+            <span class="hero-chip">📋 ADL 0–20 คะแนน</span>
+            <span class="hero-chip">⌂ บันทึกเยี่ยมบ้าน</span>
+            <span class="hero-chip">⌖ แผนที่ GPS</span>
+            <span class="hero-chip">⇩ ส่งออก CSV</span>
+            <span class="hero-chip">↗ ประสานบริการ</span>
+            <span class="hero-chip">⌘ Google Sheets</span>
+          </div>
+        </div>
+        <span>ข้อมูล ณ วันนี้</span>
+      </div>
+
+      <!-- 6 Metric cards -->
+      <div class="grid six-cols">
+        <article class="card metric">
+          <div class="label">คัดกรองทั้งหมด</div>
+          <div class="number" id="mTotal">0</div>
+          <div class="sub">รายการในระบบ</div>
+        </article>
+        <article class="card metric warn">
+          <div class="label">เข้าเกณฑ์พึ่งพิง</div>
+          <div class="number" id="mEligible">0</div>
+          <div class="sub">ADL 0–11 คะแนน</div>
+        </article>
+        <article class="card metric danger">
+          <div class="label">กลุ่มติดเตียง</div>
+          <div class="number" id="mBed">0</div>
+          <div class="sub">ADL 0–4 คะแนน</div>
+        </article>
+        <article class="card metric">
+          <div class="label">รอติดตาม</div>
+          <div class="number" id="mFollow">0</div>
+          <div class="sub">ยังไม่ปิดแผนดูแล</div>
+        </article>
+        <article class="card metric sky">
+          <div class="label">บันทึกเยี่ยมบ้าน</div>
+          <div class="number" id="mVisits">0</div>
+          <div class="sub">ครั้งที่ลงบันทึก</div>
+        </article>
+        <article class="card metric rose">
+          <div class="label">ประสานบริการ</div>
+          <div class="number" id="mRequests">0</div>
+          <div class="sub">คำขอทั้งหมด</div>
+        </article>
+      </div>
+
+      <!-- Quick actions -->
+      <div class="quick-row">
+        <button class="btn jump" data-go="screen">+ คัดกรองรายใหม่</button>
+        <button class="btn secondary jump" data-go="visits">⌂ บันทึกเยี่ยมบ้าน</button>
+        <button class="btn outline jump" data-go="requests">↗ ประสานบริการ</button>
+        <button class="btn secondary jump" data-go="cases">☷ ดูทะเบียนเคส</button>
+      </div>
+
+      <!-- Row 2: ADL bars + Upcoming visits -->
+      <div class="grid two">
+        <article class="card">
+          <div class="head"><h3>สรุปผลคัดกรองตามระดับ ADL</h3><span class="hint">อัปเดตจากข้อมูลที่บันทึก</span></div>
+          <div class="bars" id="summaryBars"><div class="empty" style="padding:15px"><i>⌕</i>ยังไม่มีข้อมูล</div></div>
+          <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
+            <div class="head" style="margin-bottom:10px"><h3 style="font-size:17px">ค่าเฉลี่ย ADL และอายุ</h3></div>
+            <div class="stat-list">
+              <div class="stat"><span>คะแนน ADL เฉลี่ย</span><b id="mAvgAdl">–</b></div>
+              <div class="stat"><span>อายุเฉลี่ย (ปี)</span><b id="mAvgAge">–</b></div>
+              <div class="stat"><span>มีพิกัด GPS (ปักหมุดได้)</span><b id="mWithGps">0</b></div>
+            </div>
+          </div>
+        </article>
+        <article class="card">
+          <div class="head"><h3>นัดเยี่ยมที่กำลังถึง</h3><span class="hint">±14 วัน จากวันนี้</span></div>
+          <div id="upcomingList"><div class="empty" style="padding:15px"><i>✓</i>ไม่มีนัดเยี่ยมในช่วงนี้</div></div>
+        </article>
+      </div>
+
+      <!-- Row 3: Risk + Sync -->
+      <div class="grid two dash-divider">
+        <article class="card">
+          <div class="head"><h3>ประเด็นเสี่ยงที่พบในระบบ</h3><span class="hint">นับจากแบบคัดกรองทั้งหมด</span></div>
+          <div class="stat-list" id="riskSummary"><div class="empty" style="padding:12px"><i>✓</i>ยังไม่มีข้อมูล</div></div>
+        </article>
+        <article class="card">
+          <div class="head"><h3>สถานะการเชื่อมข้อมูล</h3></div>
+          <div class="stat-list">
+            <div class="stat"><span>บันทึกในเครื่อง (ยังไม่ส่ง)</span><b id="sLocal">0</b></div>
+            <div class="stat"><span>ส่งถึง Google Sheets แล้ว</span><b id="sSynced">0</b></div>
+            <div class="stat"><span>รอส่งเมื่อใส่ GAS URL</span><b id="sPending">0</b></div>
+          </div>
+          <div class="actions">
+            <button id="syncBtn" type="button" class="btn outline">↻ ส่งข้อมูลที่ค้าง</button>
+            <button type="button" class="btn secondary jump" data-go="network">⌘ ตั้งค่า GAS URL</button>
+          </div>
+        </article>
+      </div>
+
+      <!-- Activity -->
+      <article class="card dash-divider">
+        <div class="head"><h3>กิจกรรมล่าสุด</h3><button class="btn secondary jump" data-go="screen">+ บันทึกการคัดกรอง</button></div>
+        <div id="activities"></div>
+      </article>
+
+      <!-- ========== REPORTS (ยุบมาอยู่ในภาพรวม) ========== -->
+      <div style="margin-top:28px;padding-top:22px;border-top:2px solid var(--line)">
+        <div class="head" style="margin-bottom:14px">
+          <h3 style="font-size:22px">▣ รายงานสถิติ</h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button id="printBtn" type="button" class="btn secondary">⎙ พิมพ์รายงาน</button>
+            <button id="exportCsvBtn" type="button" class="btn outline">⇩ ส่งออก CSV</button>
+          </div>
+        </div>
+        <div class="grid six-cols">
+          <article class="card metric"><div class="label">คัดกรองทั้งหมด</div><div class="number" id="rptTotal">0</div><div class="sub">รายการ</div></article>
+          <article class="card metric danger"><div class="label">ติดเตียง</div><div class="number" id="rptBed">0</div><div class="sub">ADL 0–4</div></article>
+          <article class="card metric warn"><div class="label">ติดบ้าน</div><div class="number" id="rptHome">0</div><div class="sub">ADL 5–11</div></article>
+          <article class="card metric"><div class="label">ติดสังคม</div><div class="number" id="rptSocial">0</div><div class="sub">ADL 12–20</div></article>
+          <article class="card metric sky"><div class="label">เยี่ยมบ้านแล้ว</div><div class="number" id="rptVisits">0</div><div class="sub">บันทึก</div></article>
+          <article class="card metric rose"><div class="label">คำขอบริการ</div><div class="number" id="rptRequests">0</div><div class="sub">รายการ</div></article>
+        </div>
+        <div class="grid two">
+          <article class="card"><div class="head"><h3>สรุปตามพื้นที่ / หมู่บ้าน</h3><span class="hint">จัดกลุ่มตามช่อง หมู่บ้าน/ตำบล</span></div><div class="area-stats" id="areaStats"></div></article>
+          <article class="card"><div class="head"><h3>ประเด็นเสี่ยงที่พบ</h3><span class="hint">นับจากแบบคัดกรองทั้งหมด</span></div><div class="stat-list" id="riskStats"></div></article>
+        </div>
+        <article class="card" style="margin-top:16px"><div class="head"><h3>รายชื่อผู้สูงอายุทั้งหมด</h3><span class="hint" id="rptRowCount">0 ราย</span></div><div class="table-wrap"><table class="table" style="min-width:900px"><thead><tr><th>วันที่</th><th>ชื่อ-สกุล / รหัส</th><th>พื้นที่</th><th>อายุ</th><th>ADL</th><th>ผล</th><th>สถานะ</th><th>นัดเยี่ยม</th><th>ผู้ดูแลหลัก</th></tr></thead><tbody id="rptRows"></tbody></table></div></article>
+      </div>
+    </section>
+
+    <!-- ==================== SCREENING ==================== -->
+    <section id="screen" class="section">
+      <div class="hero"><div><h2>แบบคัดกรองเข้าสู่การดูแลภาวะพึ่งพิง</h2><p>กรอกข้อมูลและเลือกคะแนน ADL ทั้ง 10 กิจกรรม ระบบจะคำนวณผล จัดกลุ่ม และเสนอเส้นทางดูแลเบื้องต้นทันที</p></div><span>ข้อมูลครบก่อนบันทึก</span></div>
+      <div class="grid screen-grid">
+        <form id="screenForm" class="card" novalidate>
+          <div class="form-section"><h3>1. ข้อมูลผู้สูงอายุและผู้ประเมิน</h3><p>ช่องที่มี <span class="req">*</span> จำเป็นสำหรับสร้างทะเบียนเคส</p>
+            <div class="fields three-cols">
+              <div><label>วันที่ประเมิน <span class="req">*</span></label><input name="date" id="date" type="date" required></div>
+              <div><label>ผู้ประเมิน <span class="req">*</span></label><input name="assessor" placeholder="ชื่อ-สกุล / ตำแหน่ง" required></div>
+              <div><label>หน่วยบริการ</label><input name="unit" placeholder="รพ.สต. / PCU"></div>
+              <div><label>เลขบัตรประชาชน / HN <span class="req">*</span></label><input name="reference" inputmode="numeric" maxlength="13" placeholder="รหัสอ้างอิง" required></div>
+              <div><label>ชื่อ-สกุล <span class="req">*</span></label><input name="name" placeholder="ชื่อผู้สูงอายุ" required></div>
+              <div><label>อายุ (ปี) <span class="req">*</span></label><input name="age" type="number" min="60" max="130" placeholder="60" required></div>
+              <div><label>หมู่บ้าน / ตำบล <span class="req">*</span></label><input name="area" placeholder="หมู่... ตำบล..." required></div>
+              <div><label>ผู้ดูแลหลัก / โทรศัพท์</label><input name="caregiver" placeholder="ชื่อและเบอร์โทร"></div>
+              <div><label>โทรศัพท์ผู้สูงอายุ</label><input name="phone" inputmode="tel" placeholder="ถ้ามี"></div>
+              <div><label>Latitude (พิกัดละติจูด)</label><input id="latitude" name="latitude" inputmode="decimal" placeholder="เช่น 6.6238"></div>
+              <div><label>Longitude (พิกัดลองจิจูด)</label><input id="longitude" name="longitude" inputmode="decimal" placeholder="เช่น 100.0674"></div>
+              <div><label>บันทึกตำแหน่ง</label><button type="button" id="locationBtn" class="btn outline">⌖ ดึงพิกัดปัจจุบัน</button></div>
+              <div class="full"><label>โรคประจำตัว / ประเด็นสุขภาพสำคัญ</label><textarea name="conditions" placeholder="เช่น Stroke แผลกดทับ สายให้อาหาร ความเสี่ยงหกล้ม"></textarea></div>
+            </div>
+            <div style="margin-top:11px"><label>ประเด็นที่ต้องเฝ้าระวัง</label><div class="checks"><label><input type="checkbox" name="risk" value="เสี่ยงหกล้ม">เสี่ยงหกล้ม</label><label><input type="checkbox" name="risk" value="แผลกดทับ">แผลกดทับ</label><label><input type="checkbox" name="risk" value="กลืนลำบาก">กลืนลำบาก</label><label><input type="checkbox" name="risk" value="ไม่มีผู้ดูแล">ไม่มีผู้ดูแลเพียงพอ</label><label><input type="checkbox" name="risk" value="ต้องใช้อุปกรณ์ช่วยเหลือ">ต้องใช้อุปกรณ์ช่วยเหลือ</label></div></div>
+          </div>
+          <div class="form-section"><h3>2. ประเมินกิจวัตรประจำวัน (ADL / Barthel Index)</h3><p class="adl-note">เลือก 1 ระดับในแต่ละกิจกรรม คะแนนเต็ม 20 คะแนน ระบบจะบันทึกคะแนนรายข้อพร้อมผลสรุป</p><div class="adl" id="adlList"></div></div>
+          <div class="form-section"><h3>3. แผนและการส่งต่อเบื้องต้น</h3><div class="fields"><div><label>กำหนดเยี่ยมบ้าน/ติดตามครั้งถัดไป</label><input name="visitPlan" type="date"></div><div><label>ผู้รับผิดชอบแผนดูแล</label><input name="owner" placeholder="Care Manager / หน่วยบริการ"></div><div class="full"><label>ข้อเสนอแนะหรือแผนดูแลเฉพาะราย</label><textarea name="careNote" placeholder="ระบุเป้าหมาย ผู้รับผิดชอบ การส่งต่อ หรืออุปกรณ์ที่จำเป็น"></textarea></div></div></div>
+          <div class="actions"><button type="button" id="calculate" class="btn secondary">∑ คำนวณผลคัดกรอง</button><button type="submit" class="btn">✓ บันทึกผลคัดกรอง</button></div>
+        </form>
+        <div><div class="result" id="resultBox"></div><div class="clinical"><b>ข้อควรระวัง:</b> ผลลัพธ์เป็นเครื่องมือสนับสนุนการคัดกรอง ไม่ทดแทนการวินิจฉัยหรือดุลยพินิจบุคลากรวิชาชีพ ต้องทบทวนสภาพจริงและสิทธิการดูแลก่อนเปิดแผน LTC</div></div>
+      </div>
+    </section>
+
+    <!-- ==================== CASES ==================== -->
+    <section id="cases" class="section">
+      <div class="hero"><div><h2>ทะเบียนและติดตามเคส</h2><p>ดูผลคัดกรองรายบุคคล อัปเดตสถานะ และจัดลำดับเคสที่ต้องเยี่ยมบ้านหรือประสานทีม</p></div><span>จัดการเคสในหน้าเดียว</span></div>
+      <article class="card"><div class="filters"><div class="filter"><label>ค้นหา</label><input id="search" placeholder="ชื่อ รหัสอ้างอิง หรือพื้นที่"></div><div class="filter"><label>กลุ่มคัดกรอง</label><select id="groupFilter"><option value="">ทุกกลุ่ม</option><option>ติดเตียง</option><option>ติดบ้าน</option><option>ติดสังคม</option></select></div><button id="clearFilter" type="button" class="btn secondary">ล้างตัวกรอง</button></div><div class="table-wrap"><table class="table"><thead><tr><th>วันที่</th><th>ผู้สูงอายุ / รหัส</th><th>พื้นที่</th><th>ADL</th><th>ผลคัดกรอง</th><th>แผนติดตาม</th><th>สถานะเคส</th></tr></thead><tbody id="caseRows"></tbody></table></div></article>
+    </section>
+
+    <!-- ==================== REQUESTS ==================== -->
+    <section id="requests" class="section">
+      <div class="hero"><div><h2>ประสานบริการและส่งต่อความต้องการ</h2><p>เชื่อมคำขอกับข้อมูลคัดกรอง เลือกประเภทบริการ แล้วระบบจะแนะนำหน่วยงานเครือข่ายที่เกี่ยวข้อง</p></div><span>คำขอแนบกับเคสได้</span></div>
+      <div class="grid two">
+        <form id="requestForm" class="card" novalidate><h3>สร้างคำขอประสานบริการ</h3><p class="lead">คำขอจะบันทึกในเครื่อง และส่งไป Google Sheets เมื่อวาง GAS URL แล้ว</p><div class="fields"><div class="full"><label>ผู้สูงอายุ <span class="req">*</span></label><select id="elderSelect" name="elder" required></select></div><div><label>ประเภทความต้องการ <span class="req">*</span></label><select id="category" name="category"></select></div><div><label>ระดับความเร่งด่วน</label><select name="urgency"><option>ปกติ</option><option>เร่งด่วน</option><option>วิกฤต/ต้องช่วยทันที</option></select></div><div class="full"><label>รายละเอียดคำขอ <span class="req">*</span></label><textarea name="detail" placeholder="เช่น ต้องการเตียงลม เยี่ยมบ้าน ปรับสภาพบ้าน หรือรถรับส่งพบแพทย์" required></textarea></div></div><div class="route" id="route"></div><div class="actions"><button class="btn orange" type="submit">↗ บันทึกคำขอและประสานงาน</button></div></form>
+        <article class="card"><div class="head"><h3>รายการคำขอล่าสุด</h3><span class="hint" id="requestCount">0 รายการ</span></div><div class="table-wrap"><table class="table" style="min-width:600px"><thead><tr><th>เลขที่</th><th>ผู้สูงอายุ</th><th>คำขอ</th><th>เร่งด่วน</th><th>ผู้รับผิดชอบ</th></tr></thead><tbody id="requestRows"></tbody></table></div></article>
+      </div>
+    </section>
+
+    <!-- ==================== VISITS ==================== -->
+    <section id="visits" class="section">
+      <div class="hero"><div><h2>บันทึกการเยี่ยมบ้าน</h2><p>บันทึกผลการเยี่ยมบ้านแต่ละครั้ง ติดตามความเปลี่ยนแปลง ADL และวางแผนนัดเยี่ยมครั้งถัดไปสำหรับแต่ละราย</p></div><span>บันทึกต่อเนื่องรายราย</span></div>
+      <div class="grid two">
+        <form id="visitForm" class="card" novalidate>
+          <h3>บันทึกผลการเยี่ยมบ้าน</h3>
+          <p class="lead">เลือกผู้สูงอายุจากทะเบียนแล้วกรอกผลการเยี่ยมบ้าน</p>
+          <div class="fields">
+            <div class="full"><label>ผู้สูงอายุ <span class="req">*</span></label><select id="visitElderSelect" name="elder" required></select></div>
+            <div><label>วันที่เยี่ยมบ้าน <span class="req">*</span></label><input id="visitDate" name="visitDate" type="date" required></div>
+            <div><label>ผู้เยี่ยม / Care Manager</label><input name="visitor" placeholder="ชื่อ-สกุล / ตำแหน่ง"></div>
+            <div class="full"><label>สิ่งที่พบจากการเยี่ยมบ้าน <span class="req">*</span></label><textarea name="findings" placeholder="สภาพบ้าน สุขภาพ ความสามารถ ADL ผู้ดูแล ปัญหาที่พบ หรืออื่น ๆ" required></textarea></div>
+            <div><label>ความเปลี่ยนแปลง ADL</label><select name="adlChange"><option value="คงเดิม">คงเดิม</option><option value="ดีขึ้น">ดีขึ้น</option><option value="แย่ลง">แย่ลง</option></select></div>
+            <div><label>วันนัดเยี่ยมครั้งถัดไป</label><input name="nextVisitDate" type="date"></div>
+            <div class="full"><label>แผน / การดำเนินการต่อ</label><textarea name="nextAction" placeholder="สิ่งที่ต้องทำต่อ เช่น ส่งต่อ จัดหาอุปกรณ์ ปรับสภาพบ้าน ประสาน Care Manager"></textarea></div>
+          </div>
+          <div class="actions"><button type="submit" class="btn">⌂ บันทึกการเยี่ยมบ้าน</button></div>
+        </form>
+        <article class="card">
+          <div class="head"><h3>ประวัติการเยี่ยมบ้าน</h3><span class="hint" id="visitCount">0 บันทึก</span></div>
+          <div id="visitList" class="visit-list"></div>
+        </article>
+      </div>
+    </section>
+
+    <!-- ==================== MAP ==================== -->
+    <section id="map" class="section">
+      <div class="hero"><div><h2>แผนที่ติดตามผู้สูงอายุ</h2><p>ปักหมุดจากพิกัดที่บันทึกในแบบคัดกรอง เพื่อเห็นการกระจายของเคสและกลุ่มที่ต้องเร่งติดตามในพื้นที่</p></div><span>แสดงเฉพาะเคสที่มีพิกัด</span></div>
+      <div class="grid two">
+        <article class="card"><div class="head"><h3>แผนที่ติดตามเคส</h3><span class="hint" id="mapCount">0 หมุด</span></div><div class="map-shell"><div class="map-toolbar"><div class="map-key"><span><i style="background:#c87878"></i>ติดเตียง</span><span><i style="background:#d4a030"></i>ติดบ้าน</span><span><i style="background:#3aaa6a"></i>ติดสังคม</span></div><button type="button" id="fitMapBtn" class="btn secondary">⌖ ดูหมุดทั้งหมด</button></div><div id="careMap" class="care-map"></div></div></article>
+        <article class="card"><div class="head"><h3>เคสที่มีพิกัด</h3><span class="hint">คลิกหมุดเพื่อดูข้อมูลย่อ</span></div><div id="mapPeople" class="map-list"></div></article>
+      </div>
+    </section>
+
+    <!-- ==================== NETWORK ==================== -->
+    <section id="network" class="section">
+      <div class="hero"><div><h2>เครือข่ายบริการและ Google Sheets</h2><p>กำหนดหน่วยประสานตามความต้องการ และเชื่อมข้อมูลผ่าน Google Apps Script โดยวาง URL ที่ได้จากการ Deploy ภายหลัง</p></div><span>พร้อมวาง URL ภายหลัง</span></div>
+      <div class="config"><div><h3>เชื่อมต่อ Google Apps Script</h3><p>วาง URL ที่ได้จากการ Deploy Web app ลงในช่องนี้เพื่อใช้เฉพาะเบราว์เซอร์เครื่องนี้ หรือฝัง URL ไว้ในตัวแปร <code>GAS_WEB_APP_URL</code> ในโค้ดเพื่อเป็นค่าเริ่มต้นของทุกผู้ใช้</p><div class="fields" style="margin-top:12px"><div class="full"><label for="gasUrlInput">GAS Web App URL</label><input id="gasUrlInput" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/.../exec"></div></div><div class="actions"><button id="saveGasUrlBtn" class="btn" type="button">✓ บันทึก URL</button><button id="clearGasUrlBtn" class="btn secondary" type="button">ล้าง URL</button><button id="syncNetwork" class="btn outline" type="button">↻ ส่งข้อมูลที่ค้าง</button></div><small class="hint">ค่าที่บันทึกผ่านหน้าเว็บจะมีลำดับเหนือกว่าค่าที่ฝังในโค้ด; เมื่อล้าง URL ระบบจะกลับไปใช้ค่าในโค้ด</small></div></div>
+      <div class="actions"><button id="backupBtn" type="button" class="btn secondary">⇩ สำรองข้อมูลเป็นไฟล์ JSON</button></div>
+      <p class="hint">ใช้ไฟล์ <code>google-apps-script.gs</code> เป็นโค้ดฝั่ง GAS สำหรับสร้างชีต Assessments, ServiceRequests และ VisitLogs อัตโนมัติ</p>
+      <div id="networkRows" class="grid three"></div>
+    </section>
+  </main>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script>
+  const GAS_WEB_APP_URL = '';
+  const STORE = 'eldercare-adl-v1', STORE_REQ = 'eldercare-request-v1', STORE_VISIT = 'eldercare-visit-v1', GAS_URL_STORE = 'eldercare-gas-url-v1';
+  const META = {dashboard:['ภาพรวมรายงานสถิติ','สรุปผลคัดกรอง รายงานสถิติ และวางแผนดูแลภาวะพึ่งพิงเป็นรายบุคคล'],screen:['คัดกรองภาวะพึ่งพิง','ประเมิน ADL 10 กิจกรรม พร้อมสรุปผลและแนวทางดูแล'],cases:['ทะเบียนและติดตามเคส','จัดลำดับผู้สูงอายุตามผลคัดกรองและสถานะการติดตาม'],requests:['ประสานบริการ','บันทึกความต้องการและส่งต่อไปยังเครือข่ายที่เกี่ยวข้อง'],visits:['บันทึกการเยี่ยมบ้าน','บันทึกผลการเยี่ยมบ้านและติดตามความเปลี่ยนแปลงรายบุคคล'],map:['แผนที่ติดตามเคส','ดูตำแหน่งผู้สูงอายุจากพิกัดที่บันทึก และจัดลำดับการติดตามในพื้นที่'],network:['เครือข่ายและการเชื่อมต่อ','ตั้งค่า Google Apps Script และดูแนวทางส่งต่อบริการ']};
+  const ADL = [
+    ['feeding','1. รับประทานอาหาร','รวมการใช้ช้อน/ภาชนะ',[[0,'ต้องมีผู้ช่วยเหลือ'],[1,'ช่วยตนเองได้บางส่วน'],[2,'ช่วยตนเองได้']]],
+    ['grooming','2. ล้างหน้า หวีผม แปรงฟัน','กิจวัตรส่วนบุคคล',[[0,'ต้องมีผู้ช่วยเหลือ'],[1,'ทำได้เอง']]],
+    ['transfer','3. ลุกนั่งจากเตียงไปเก้าอี้','รวมการเคลื่อนย้ายตัว',[[0,'ทำไม่ได้'],[1,'ต้องมีคนช่วยมาก'],[2,'ต้องมีคนช่วยเล็กน้อย'],[3,'ทำได้เอง']]],
+    ['toilet','4. ใช้ห้องน้ำ','เข้าออก ทำความสะอาด และแต่งกาย',[[0,'ต้องมีผู้ช่วยเหลือ'],[1,'ทำได้บางส่วน'],[2,'ทำได้เอง']]],
+    ['mobility','5. การเคลื่อนที่ในบ้าน','เดินหรือใช้รถเข็น',[[0,'เคลื่อนที่ไม่ได้'],[1,'ใช้รถเข็นเองได้'],[2,'เดินโดยมีคนช่วย'],[3,'เดินได้เอง']]],
+    ['dressing','6. การสวมใส่เสื้อผ้า','รวมติดกระดุม/รูดซิป',[[0,'ต้องมีผู้ช่วยเหลือ'],[1,'ทำได้บางส่วน'],[2,'ทำได้เอง']]],
+    ['stairs','7. ขึ้นลงบันได','หากไม่มีบันได ประเมินตามความสามารถ',[[0,'ทำไม่ได้'],[1,'ต้องมีคนช่วย'],[2,'ทำได้เอง']]],
+    ['bowels','8. การกลั้นอุจจาระ','พิจารณาภายใน 1 สัปดาห์',[[0,'กลั้นไม่ได้'],[1,'ผิดปกติเป็นครั้งคราว'],[2,'กลั้นได้ปกติ']]],
+    ['bladder','9. การกลั้นปัสสาวะ','พิจารณาภายใน 1 สัปดาห์',[[0,'กลั้นไม่ได้'],[1,'ผิดปกติเป็นครั้งคราว'],[2,'กลั้นได้ปกติ']]],
+    ['bathing','10. การอาบน้ำ','อาบน้ำทั้งตัว',[[0,'ต้องมีผู้ช่วยเหลือ'],[1,'ทำได้เอง']]]
+  ];
+  const ROUTES = {
+    'การดูแลสุขภาพ/เยี่ยมบ้าน':'รพ.สต. / PCU / โรงพยาบาล / Care Manager / ทีม LTC',
+    'อุปกรณ์ช่วยเหลือและฟื้นฟู':'รพ.สต. / กายภาพบำบัด / กองทุน LTC / อปท.',
+    'ปรับสภาพบ้านและสิ่งแวดล้อม':'อปท. / เทศบาล / พม. / ภาคีชุมชน',
+    'การเดินทางและเข้าถึงบริการ':'อปท. / หน่วยกู้ชีพ / รพ.สต. / เครือข่ายอาสา',
+    'สวัสดิการและผู้ดูแล':'พม. / อปท. / พัฒนาชุมชน / อสม.',
+    'การมีส่วนร่วมและข้อมูลข่าวสาร':'ชมรมผู้สูงอายุ / อสม. / ผู้นำชุมชน / ประชาสัมพันธ์'
+  };
+  const data = {records:read(STORE), requests:read(STORE_REQ), visits:read(STORE_VISIT)};
+  let careMap = null, mapMarkers = [];
+  let toastTimer;
+  function read(key){try{return JSON.parse(localStorage.getItem(key))||[]}catch(e){return []}}
+  function save(){localStorage.setItem(STORE,JSON.stringify(data.records));localStorage.setItem(STORE_REQ,JSON.stringify(data.requests));localStorage.setItem(STORE_VISIT,JSON.stringify(data.visits))}
+  function e(s){return String(s||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+  function id(prefix){return prefix+'-'+Date.now().toString(36).toUpperCase()+Math.random().toString(36).slice(2,5).toUpperCase()}
+  function today(){return new Date().toISOString().slice(0,10)}
+  function dateText(v){if(!v)return 'ยังไม่กำหนด';return new Date(v+'T00:00:00').toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'numeric'})}
+  function timeText(v){return new Date(v).toLocaleString('th-TH',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}
+  function gasUrl(){return (localStorage.getItem(GAS_URL_STORE)||GAS_WEB_APP_URL||'').trim()}
+  function gasReady(){return /^https:\/\/script\.google\.com\//.test(gasUrl())}
+  function group(score){if(score<=4)return {name:'ติดเตียง',level:'พึ่งพิงมาก',eligible:true,tone:'red',message:'ควรเข้าสู่การดูแลภาวะพึ่งพิงแบบเข้มข้น',steps:['แจ้ง Care Manager/ทีม LTC และประเมินความเร่งด่วน','เยี่ยมบ้านเพื่อประเมินแผลกดทับ โภชนาการ การเคลื่อนย้าย และผู้ดูแล','จัดทำ Care Plan รายบุคคล พร้อมกำหนดวันติดตาม']};if(score<=11)return {name:'ติดบ้าน',level:'พึ่งพิงปานกลาง',eligible:true,tone:'yellow',message:'เข้าเกณฑ์ติดตามการดูแลภาวะพึ่งพิง',steps:['ทบทวนสิทธิและเปิดแผนดูแลร่วมกับทีม LTC','ประเมินอุปกรณ์ช่วยเหลือ การฟื้นฟู และภาระผู้ดูแล','นัดเยี่ยมบ้านและประเมิน ADL ซ้ำตามแผน']};return {name:'ติดสังคม',level:'ช่วยเหลือตนเองได้เป็นส่วนใหญ่',eligible:false,tone:'green',message:'ยังไม่เข้าเกณฑ์ภาวะพึ่งพิงจากคะแนน ADL',steps:['ให้คำแนะนำป้องกันการหกล้มและส่งเสริมสุขภาพ','เฝ้าระวังโรค/ความเสี่ยง และประเมินซ้ำเมื่อสมรรถนะลดลง','เชื่อมกิจกรรมผู้สูงอายุในชุมชนตามความเหมาะสม']}}
+  function badge(name){var tone=name==='ติดเตียง'?'red':name==='ติดบ้าน'?'yellow':'green';return '<span class="state '+tone+'">'+e(name)+'</span>'}
+  function syncBadge(v){return v==='synced'?'<span class="state blue">ส่ง Sheets แล้ว</span>':v==='error'?'<span class="state red">รอส่งอีกครั้ง</span>':'<span class="state gray">บันทึกในเครื่อง</span>'}
+  function toast(msg,type){var t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+(type||'');clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.className='toast'},4300)}
+  function renderADL(){document.getElementById('adlList').innerHTML=ADL.map(function(x){return '<div class="adl-item"><div class="adl-head"><b>'+x[1]+' <span class="req">*</span></b><span>'+x[2]+'</span></div><div class="options">'+x[3].map(function(o){return '<span class="option"><input id="'+x[0]+o[0]+'" type="radio" name="'+x[0]+'" value="'+o[0]+'"><label for="'+x[0]+o[0]+'">'+o[0]+' คะแนน · '+o[1]+'</label></span>'}).join('')+'</div></div>'}).join('')}
+  function scores(){var f=document.getElementById('screenForm');return ADL.map(function(x){var v=f.elements[x[0]].value;return v===''?null:Number(v)})}
+  function renderResult(){var values=scores(),complete=values.every(function(x){return x!==null}),score=values.reduce(function(a,b){return a+(b||0)},0),box=document.getElementById('resultBox');if(!complete){box.innerHTML='<div class="score-label">ผลคัดกรอง ADL</div><div class="score">'+score+'<small> / 20</small></div><h3>รอคะแนนให้ครบ</h3><p>บันทึกแล้ว '+values.filter(function(x){return x!==null}).length+' จาก 10 กิจกรรม เลือกคะแนนให้ครบเพื่อสรุปผล</p><div class="path"><b>เกณฑ์แปลผล</b><ul><li>0–4: ติดเตียง / พึ่งพิงมาก</li><li>5–11: ติดบ้าน / พึ่งพิงปานกลาง</li><li>12–20: ติดสังคม / เฝ้าระวัง</li></ul></div>';return {complete:false,score:score}}var g=group(score);box.innerHTML='<div class="score-label">ผลคัดกรอง ADL</div><div class="score">'+score+'<small> / 20</small></div>'+badge(g.name)+'<h3>'+g.level+'</h3><p>'+g.message+'</p><div class="path"><b>เส้นทางดูแลที่แนะนำ</b><ul>'+g.steps.map(function(s){return '<li>'+s+'</li>'}).join('')+'</ul></div>';return {complete:true,score:score,g:g}}
+  function renderDashboard(){
+    var r=data.records,total=r.length,eligible=r.filter(function(x){return x.eligible}).length,bed=r.filter(function(x){return x.group==='ติดเตียง'}).length,follow=r.filter(function(x){return x.status!=='ปิดแผน'}).length;
+    document.getElementById('mTotal').textContent=total;document.getElementById('mEligible').textContent=eligible;document.getElementById('mBed').textContent=bed;document.getElementById('mFollow').textContent=follow;document.getElementById('mVisits').textContent=data.visits.length;document.getElementById('mRequests').textContent=data.requests.length;
+    // ADL bars
+    var sums=[['ติดเตียง','0–4 คะแนน',r.filter(function(x){return x.group==='ติดเตียง'}).length,'#c87878'],['ติดบ้าน','5–11 คะแนน',r.filter(function(x){return x.group==='ติดบ้าน'}).length,'#d4a030'],['ติดสังคม','12–20 คะแนน',r.filter(function(x){return x.group==='ติดสังคม'}).length,'#3aaa6a']],max=Math.max(1,sums[0][2],sums[1][2],sums[2][2]);
+    document.getElementById('summaryBars').innerHTML=sums.map(function(x){return '<div class="bar"><span>'+x[0]+' <small>'+x[1]+'</small></span><div class="track"><div class="fill" style="width:'+(x[2]/max*100)+'%;background:'+x[3]+'"></div></div><b class="count">'+x[2]+'</b></div>'}).join('');
+    // Averages + GPS count
+    var avgAdl=total?Math.round(r.reduce(function(a,x){return a+x.score},0)/total*10)/10:'–';var avgAge=total?Math.round(r.reduce(function(a,x){return a+(x.age||0)},0)/total):'–';var gpsCount=r.filter(function(x){return x.latitude&&x.longitude&&Number.isFinite(Number(x.latitude))}).length;
+    document.getElementById('mAvgAdl').textContent=avgAdl;document.getElementById('mAvgAge').textContent=avgAge;document.getElementById('mWithGps').textContent=gpsCount+' ราย';
+    // Upcoming visits
+    var td=new Date(today()+'T00:00:00'),upcoming=r.filter(function(x){if(!x.visitPlan)return false;var d=new Date(x.visitPlan+'T00:00:00'),diff=(d-td)/864e5;return diff>=-3&&diff<=14}).sort(function(a,b){return new Date(a.visitPlan)-new Date(b.visitPlan)});
+    document.getElementById('upcomingList').innerHTML=upcoming.length?upcoming.slice(0,6).map(function(x){var d=new Date(x.visitPlan+'T00:00:00'),diff=Math.round((d-td)/864e5);var tag=diff<0?'<span class="state red">เลย '+Math.abs(diff)+' วัน</span>':diff===0?'<span class="state yellow">วันนี้</span>':diff<=3?'<span class="state yellow">อีก '+diff+' วัน</span>':'<span class="state green">อีก '+diff+' วัน</span>';return '<div class="upcoming-item"><div><b>'+e(x.name)+'</b><small>'+e(x.area)+' · '+e(x.group)+'</small></div><div class="upcoming-time">'+tag+'<div style="font-size:13px;color:var(--muted);margin-top:3px">'+dateText(x.visitPlan)+'</div></div></div>'}).join(''):'<div class="empty" style="padding:16px"><i>✓</i>ไม่มีนัดเยี่ยมในช่วง ±14 วัน</div>';
+    // Risk summary
+    var risks=['เสี่ยงหกล้ม','แผลกดทับ','กลืนลำบาก','ไม่มีผู้ดูแล','ต้องใช้อุปกรณ์ช่วยเหลือ'];
+    document.getElementById('riskSummary').innerHTML=risks.map(function(rk){var cnt=r.filter(function(x){return x.risks&&x.risks.includes(rk)}).length;return '<div class="stat"><span>'+e(rk)+'</span><b>'+cnt+'</b></div>'}).join('');
+    // Sync stats
+    var all=r.concat(data.requests).concat(data.visits),synced=all.filter(function(x){return x.sync==='synced'}).length,local=all.length-synced;
+    document.getElementById('sLocal').textContent=local;document.getElementById('sSynced').textContent=synced;document.getElementById('sPending').textContent=gasReady()?all.filter(function(x){return x.sync==='error'||x.sync==='pending'}).length:local;
+    // Activity feed
+    var a=r.map(function(x){return {type:'▤',at:x.created,name:x.name,detail:'ประเมิน ADL '+x.score+'/20 · '+x.group}}).concat(data.requests.map(function(x){return {type:'↗',at:x.created,name:x.name,detail:'คำขอ: '+x.category}})).concat(data.visits.map(function(x){return {type:'⌂',at:x.created,name:x.elderName,detail:'เยี่ยมบ้าน: '+(x.findings||'').slice(0,38)}})).sort(function(a,b){return new Date(b.at)-new Date(a.at)}).slice(0,7);
+    document.getElementById('activities').innerHTML=a.length?a.map(function(x){return '<div class="activity"><i>'+x.type+'</i><div><b>'+e(x.name)+'</b><small>'+e(x.detail)+'</small></div><time>'+timeText(x.at)+'</time></div>'}).join(''):'<div class="empty"><i>✦</i>ยังไม่มีข้อมูล เริ่มต้นด้วยการคัดกรองผู้สูงอายุ</div>';
+  }
+  function renderCases(){var search=(document.getElementById('search').value||'').toLowerCase(),filter=document.getElementById('groupFilter').value,list=data.records.filter(function(x){return (!search||[x.name,x.reference,x.area].join(' ').toLowerCase().includes(search))&&(!filter||x.group===filter)});document.getElementById('caseRows').innerHTML=list.length?list.map(function(x){return '<tr><td>'+dateText(x.date)+'</td><td><b>'+e(x.name)+'</b><br><small>'+e(x.reference)+'</small></td><td>'+e(x.area)+'</td><td><b>'+x.score+'</b> / 20</td><td>'+badge(x.group)+'<br><small>'+e(x.level)+'</small></td><td>'+dateText(x.visitPlan)+'</td><td><select class="status-select" onchange="changeStatus(\''+e(x.id)+'\',this.value)">'+['รอติดตาม','กำลังดูแล','ส่งต่อแล้ว','ปิดแผน'].map(function(s){return '<option '+(x.status===s?'selected':'')+'>'+s+'</option>'}).join('')+'</select><br>'+syncBadge(x.sync)+'</td></tr>'}).join(''):'<tr><td colspan="7"><div class="empty"><i>⌕</i>ไม่พบข้อมูลตามตัวกรอง</div></td></tr>'}
+  function changeStatus(recordId,status){var x=data.records.find(function(a){return a.id===recordId});if(!x)return;x.status=status;x.sync=gasReady()?'pending':'local';save();renderAll();toast('อัปเดตสถานะเคสแล้ว');if(gasReady())sendOne('saveAssessment',x)}
+  window.changeStatus=changeStatus;
+  function renderPeople(){var html=data.records.length?'<option value="">เลือกผู้สูงอายุ</option>'+data.records.map(function(x){return '<option value="'+x.id+'">'+e(x.name)+' — ADL '+x.score+'/20 ('+x.group+')</option>'}).join(''):'<option value="">ยังไม่มีข้อมูลคัดกรอง — โปรดบันทึกผลคัดกรองก่อน</option>';var s1=document.getElementById('elderSelect'),s2=document.getElementById('visitElderSelect'),old1=s1.value;s1.innerHTML=html;s1.value=old1;if(s2){var old2=s2.value;s2.innerHTML=html;s2.value=old2}}
+  function renderRoute(){var c=document.getElementById('category').value;document.getElementById('route').innerHTML='<b>หน่วยงานที่ระบบแนะนำ</b>'+e(ROUTES[c]||'เลือกประเภทความต้องการ')}
+  function renderRequests(){document.getElementById('requestCount').textContent=data.requests.length+' รายการ';document.getElementById('requestRows').innerHTML=data.requests.length?data.requests.slice(0,8).map(function(x){var urgent=x.urgency==='วิกฤต/ต้องช่วยทันที'?'<span class="state red">วิกฤต</span>':x.urgency==='เร่งด่วน'?'<span class="state yellow">เร่งด่วน</span>':'<span class="state green">ปกติ</span>';return '<tr><td><b>'+e(x.id)+'</b><br><small>'+timeText(x.created)+'</small></td><td>'+e(x.name)+'</td><td>'+e(x.category)+'<br><small>'+e(x.detail)+'</small></td><td>'+urgent+'</td><td>'+e(x.route)+'<br>'+syncBadge(x.sync)+'</td></tr>'}).join(''):'<tr><td colspan="5"><div class="empty"><i>↗</i>ยังไม่มีคำขอประสานบริการ</div></td></tr>'}
+  function renderNetwork(){document.getElementById('networkRows').innerHTML=Object.keys(ROUTES).map(function(k){return '<article class="network"><b>'+e(k)+'</b><span>ส่งต่อ: '+e(ROUTES[k])+'</span></article>'}).join('')}
+  function validPoint(x){return x.latitude!==null&&x.latitude!==''&&x.latitude!==undefined&&x.longitude!==null&&x.longitude!==''&&x.longitude!==undefined&&Number.isFinite(Number(x.latitude))&&Number.isFinite(Number(x.longitude))&&Math.abs(Number(x.latitude))<=90&&Math.abs(Number(x.longitude))<=180}
+  function mapColour(x){return x.group==='ติดเตียง'?'#c87878':x.group==='ติดบ้าน'?'#d4a030':'#3aaa6a'}
+  function renderMap(){var points=data.records.filter(validPoint);document.getElementById('mapCount').textContent=points.length+' หมุด';document.getElementById('mapPeople').innerHTML=points.length?points.map(function(x){return '<article class="map-person"><div><b>'+e(x.name)+'</b><small>'+e(x.area)+' · ADL '+x.score+'/20</small></div>'+badge(x.group)+'</article>'}).join(''):'<div class="empty"><i>⌖</i>ยังไม่มีพิกัดในทะเบียน<br><small>เพิ่ม Latitude และ Longitude ในแบบคัดกรองเพื่อปักหมุด</small></div>';if(!window.L){document.getElementById('careMap').innerHTML='<div class="empty"><i>⌖</i>ไม่สามารถโหลดแผนที่ได้<br><small>โปรดตรวจสอบการเชื่อมต่ออินเทอร์เน็ต</small></div>';return}if(!careMap){careMap=L.map('careMap',{zoomControl:true}).setView([13.7367,100.5231],6);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(careMap)}mapMarkers.forEach(function(m){m.remove()});mapMarkers=[];points.forEach(function(x){var m=L.circleMarker([Number(x.latitude),Number(x.longitude)],{radius:9,color:'#fff',weight:2,fillColor:mapColour(x),fillOpacity:.9}).addTo(careMap);m.bindPopup('<b>'+e(x.name)+'</b><br>ADL: '+x.score+'/20 · '+e(x.group)+'<br>'+e(x.area)+'<br><small>ผู้ดูแล: '+e(x.caregiver||'ไม่ระบุ')+'</small>');mapMarkers.push(m)});if(points.length)fitMap();setTimeout(function(){careMap.invalidateSize()},150)}
+  function fitMap(){if(!careMap||!mapMarkers.length)return;if(mapMarkers.length===1){careMap.setView(mapMarkers[0].getLatLng(),14)}else{careMap.fitBounds(L.featureGroup(mapMarkers).getBounds().pad(.14))}}
+  function getLocation(){if(!navigator.geolocation){toast('อุปกรณ์นี้ไม่รองรับการระบุตำแหน่ง','error');return}var b=document.getElementById('locationBtn');b.disabled=true;b.textContent='กำลังหาพิกัด...';navigator.geolocation.getCurrentPosition(function(pos){document.getElementById('latitude').value=pos.coords.latitude.toFixed(6);document.getElementById('longitude').value=pos.coords.longitude.toFixed(6);b.disabled=false;b.textContent='⌖ ดึงพิกัดปัจจุบัน';toast('บันทึกพิกัดปัจจุบันแล้ว')},function(){b.disabled=false;b.textContent='⌖ ดึงพิกัดปัจจุบัน';toast('ไม่สามารถดึงพิกัดได้ โปรดอนุญาตตำแหน่งหรือกรอกเอง','error')},{enableHighAccuracy:true,timeout:15000,maximumAge:300000})}
+  function backup(){var payload={exportedAt:new Date().toISOString(),records:data.records,requests:data.requests,visits:data.visits};var url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='eldercare-backup-'+today()+'.json';a.click();setTimeout(function(){URL.revokeObjectURL(url)},1000);toast('ดาวน์โหลดไฟล์สำรองข้อมูลแล้ว')}
+  function renderVisits(){var s2=document.getElementById('visitElderSelect');if(s2){var old=s2.value;s2.innerHTML=data.records.length?'<option value="">เลือกผู้สูงอายุ</option>'+data.records.map(function(x){return '<option value="'+x.id+'">'+e(x.name)+' — ADL '+x.score+'/20 ('+x.group+')</option>'}).join(''):'<option value="">ยังไม่มีข้อมูลคัดกรอง — บันทึกผลคัดกรองก่อน</option>';s2.value=old}document.getElementById('visitCount').textContent=data.visits.length+' บันทึก';document.getElementById('visitList').innerHTML=data.visits.length?data.visits.slice(0,20).map(function(x){var ch=x.adlChange==='ดีขึ้น'?'v-better':x.adlChange==='แย่ลง'?'v-worse':'v-same';return '<div class="visit-item"><div class="v-head"><div><b>'+e(x.elderName)+'</b><small style="display:block;color:var(--muted);font-size:13px;margin-top:2px">'+e(x.area||'')+(x.group?' · '+e(x.group):'')+'</small></div><div style="text-align:right"><span class="v-tag '+ch+'">'+e(x.adlChange||'คงเดิม')+'</span><time style="display:block;font-size:13px;color:var(--muted);margin-top:4px">'+dateText(x.visitDate)+'</time></div></div><div class="v-body">'+e(x.findings||'—')+'</div>'+(x.nextVisitDate?'<div style="margin-top:9px;font-size:14px;color:var(--teal);font-weight:800">นัดครั้งถัดไป: '+dateText(x.nextVisitDate)+'</div>':'')+(x.nextAction?'<div style="margin-top:5px;font-size:14px;color:var(--ink)">แผน: '+e(x.nextAction)+'</div>':'')+'<div style="margin-top:7px;font-size:13px;color:var(--muted)">บันทึกโดย: '+e(x.visitor||'ไม่ระบุ')+' &nbsp;'+syncBadge(x.sync)+'</div></div>'}).join(''):'<div class="empty"><i>⌂</i>ยังไม่มีบันทึกการเยี่ยมบ้าน<br><small>กรอกแบบฟอร์มด้านซ้ายเพื่อเพิ่มบันทึก</small></div>'}
+  async function saveVisit(ev){ev.preventDefault();var f=document.getElementById('visitForm'),fd=new FormData(f),person=data.records.find(function(x){return x.id===fd.get('elder')});if(!person){toast('กรุณาเลือกผู้สูงอายุจากทะเบียน','error');return}if(!String(fd.get('findings')).trim()){f.elements.findings.focus();toast('กรุณากรอกสิ่งที่พบจากการเยี่ยมบ้าน','error');return}var vis={id:id('VIS'),created:new Date().toISOString(),visitDate:fd.get('visitDate')||today(),elderId:person.id,elderName:person.name,area:person.area,group:person.group,visitor:fd.get('visitor').trim(),findings:fd.get('findings').trim(),adlChange:fd.get('adlChange')||'คงเดิม',nextVisitDate:fd.get('nextVisitDate')||'',nextAction:fd.get('nextAction').trim(),sync:gasReady()?'pending':'local'};data.visits.unshift(vis);save();renderAll();f.reset();document.getElementById('visitDate').value=today();toast(gasReady()?'บันทึกการเยี่ยมบ้านแล้ว กำลังส่ง Google Sheets...':'บันทึกการเยี่ยมบ้านไว้ในเครื่องแล้ว');if(gasReady())await sendOne('saveVisit',vis)}
+  function renderReports(){var r=data.records,total=r.length,bed=r.filter(function(x){return x.group==='ติดเตียง'}).length,home=r.filter(function(x){return x.group==='ติดบ้าน'}).length,social=r.filter(function(x){return x.group==='ติดสังคม'}).length;document.getElementById('rptTotal').textContent=total;document.getElementById('rptBed').textContent=bed;document.getElementById('rptHome').textContent=home;document.getElementById('rptSocial').textContent=social;document.getElementById('rptVisits').textContent=data.visits.length;document.getElementById('rptRequests').textContent=data.requests.length;document.getElementById('rptRowCount').textContent=total+' ราย';var areas={};r.forEach(function(x){var k=x.area||'(ไม่ระบุพื้นที่)';if(!areas[k])areas[k]={bed:0,home:0,social:0};if(x.group==='ติดเตียง')areas[k].bed++;else if(x.group==='ติดบ้าน')areas[k].home++;else areas[k].social++});document.getElementById('areaStats').innerHTML=Object.keys(areas).length?Object.keys(areas).sort().map(function(k){var a=areas[k],t=a.bed+a.home+a.social;return '<div class="area-row"><span class="rpt-area-name">'+e(k)+'</span><div class="rpt-mini"><span class="red">ติดเตียง '+a.bed+'</span><span class="yellow">ติดบ้าน '+a.home+'</span><span class="green">ติดสังคม '+a.social+'</span><b style="font-size:14px">รวม '+t+'</b></div></div>'}).join(''):'<div class="empty"><i>⌕</i>ยังไม่มีข้อมูล</div>';var risks=['เสี่ยงหกล้ม','แผลกดทับ','กลืนลำบาก','ไม่มีผู้ดูแล','ต้องใช้อุปกรณ์ช่วยเหลือ'];document.getElementById('riskStats').innerHTML=risks.map(function(rk){var cnt=r.filter(function(x){return x.risks&&x.risks.includes(rk)}).length;return '<div class="stat"><span>'+e(rk)+'</span><b>'+cnt+'</b></div>'}).join('');document.getElementById('rptRows').innerHTML=r.length?r.map(function(x){return '<tr><td>'+dateText(x.date)+'</td><td><b>'+e(x.name)+'</b><br><small>'+e(x.reference)+'</small></td><td>'+e(x.area)+'</td><td>'+x.age+'</td><td><b>'+x.score+'</b>/20</td><td>'+badge(x.group)+'</td><td>'+e(x.status)+'</td><td>'+dateText(x.visitPlan)+'</td><td>'+e(x.caregiver||'—')+'</td></tr>'}).join(''):'<tr><td colspan="9"><div class="empty"><i>⌕</i>ยังไม่มีข้อมูล</div></td></tr>'}
+  function exportCSV(){var cols=['วันที่ประเมิน','ชื่อ-สกุล','รหัสอ้างอิง','อายุ','หน่วยบริการ','หมู่บ้าน/ตำบล','คะแนน ADL','ผลคัดกรอง','ระดับ','สถานะเคส','วันนัดเยี่ยม','ผู้ดูแลหลัก','โทรศัพท์','โรคประจำตัว','ประเด็นเสี่ยง','ผู้ประเมิน','หมายเหตุแผนดูแล'];var rows=[cols].concat(data.records.map(function(x){return [x.date||'',x.name||'',x.reference||'',x.age||'',x.unit||'',x.area||'',x.score,x.group||'',x.level||'',x.status||'',x.visitPlan||'',x.caregiver||'',x.phone||'',x.conditions||'',(x.risks||[]).join(';'),x.assessor||'',x.careNote||'']}));var csv=rows.map(function(row){return row.map(function(c){return '"'+String(c===null||c===undefined?'':c).replace(/"/g,'""')+'"'}).join(',')}).join('\r\n');var url=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download='eldercare-report-'+today()+'.csv';a.click();setTimeout(function(){URL.revokeObjectURL(url)},1000);toast('ส่งออก CSV แล้ว ('+data.records.length+' รายการ)')}
+  function renderAll(){renderDashboard();renderCases();renderPeople();renderRequests();renderRoute();renderNetwork();renderVisits();renderReports()}
+  async function post(action,item){if(!gasReady())return {ok:false,noUrl:true};var controller=new AbortController(),timer=setTimeout(function(){controller.abort()},20000);try{var r=await fetch(gasUrl(),{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:action,data:item,sentAt:new Date().toISOString()}),signal:controller.signal}),text=await r.text();if(!r.ok)throw Error('HTTP '+r.status);try{var reply=JSON.parse(text);if(reply.ok===false)throw Error(reply.error||'GAS ไม่รับข้อมูล')}catch(err){if(err.message!=='Unexpected end of JSON input'&&err.message!=='GAS ไม่รับข้อมูล')throw err}return {ok:true}}catch(err){return {ok:false,error:err.message}}finally{clearTimeout(timer)}}
+  async function sendOne(action,item){var r=await post(action,item);if(r.noUrl)return;r&&(item.sync=r.ok?'synced':'error');save();renderAll();if(!r.ok)toast('บันทึกในเครื่องแล้ว แต่ส่ง Google Sheets ไม่สำเร็จ: '+r.error,'error')}
+  async function syncAll(){if(!gasReady()){toast('ยังไม่ได้กำหนด GAS Web App URL','error');return}var targets=data.records.filter(function(x){return x.sync!=='synced'}).map(function(x){return ['saveAssessment',x]}).concat(data.requests.filter(function(x){return x.sync!=='synced'}).map(function(x){return ['saveServiceRequest',x]})).concat(data.visits.filter(function(x){return x.sync!=='synced'}).map(function(x){return ['saveVisit',x]}));if(!targets.length){toast('ไม่มีข้อมูลค้างส่ง');return}var b=document.getElementById('syncBtn');b.disabled=true;b.textContent='กำลังส่ง...';var ok=0;for(var i=0;i<targets.length;i++){var r=await post(targets[i][0],targets[i][1]);targets[i][1].sync=r.ok?'synced':'error';if(r.ok)ok++}save();renderAll();b.disabled=false;b.textContent='↻ ส่งข้อมูลที่ค้าง';toast('ส่งข้อมูลสำเร็จ '+ok+' จาก '+targets.length+' รายการ',ok===targets.length?'':'error')}
+  function validate(){var f=document.getElementById('screenForm'),names=['date','assessor','reference','name','age','area'];for(var i=0;i<names.length;i++){if(!String(f.elements[names[i]].value).trim()){f.elements[names[i]].focus();toast('กรุณากรอกข้อมูลที่จำเป็นให้ครบ','error');return false}}var result=renderResult();if(!result.complete){document.getElementById('adlList').scrollIntoView({behavior:'smooth',block:'center'});toast('กรุณาเลือกคะแนน ADL ให้ครบทั้ง 10 กิจกรรม','error');return false}return result}
+  async function saveAssessment(ev){ev.preventDefault();var res=validate();if(!res)return;var f=document.getElementById('screenForm'),fd=new FormData(f),g=res.g,sc=scores(),lat=fd.get('latitude'),lng=fd.get('longitude'),rec={id:id('ADL'),created:new Date().toISOString(),date:fd.get('date'),assessor:fd.get('assessor').trim(),unit:fd.get('unit').trim(),reference:fd.get('reference').trim(),name:fd.get('name').trim(),age:+fd.get('age'),area:fd.get('area').trim(),caregiver:fd.get('caregiver').trim(),phone:fd.get('phone').trim(),latitude:lat===''?null:Number(lat),longitude:lng===''?null:Number(lng),conditions:fd.get('conditions').trim(),risks:fd.getAll('risk'),scores:Object.fromEntries(ADL.map(function(x,i){return [x[0],sc[i]]})),score:res.score,group:g.name,level:g.level,eligible:g.eligible,visitPlan:fd.get('visitPlan'),owner:fd.get('owner').trim(),careNote:fd.get('careNote').trim(),status:'รอติดตาม',sync:gasReady()?'pending':'local'};data.records.unshift(rec);save();renderAll();f.reset();document.getElementById('date').value=today();renderResult();toast(gasReady()?'บันทึกผลคัดกรองแล้ว กำลังส่ง Google Sheets...':'บันทึกผลคัดกรองไว้ในเครื่องแล้ว');if(gasReady())await sendOne('saveAssessment',rec)}
+  async function saveRequest(ev){ev.preventDefault();var f=document.getElementById('requestForm'),fd=new FormData(f),person=data.records.find(function(x){return x.id===fd.get('elder')});if(!person){toast('กรุณาเลือกผู้สูงอายุจากทะเบียนคัดกรอง','error');return}if(!String(fd.get('detail')).trim()){f.elements.detail.focus();toast('กรุณาระบุรายละเอียดคำขอ','error');return}var req={id:id('REQ'),created:new Date().toISOString(),elderId:person.id,name:person.name,category:fd.get('category'),urgency:fd.get('urgency'),detail:fd.get('detail').trim(),route:ROUTES[fd.get('category')],status:'รับเรื่องแล้ว',sync:gasReady()?'pending':'local'};data.requests.unshift(req);save();renderAll();f.reset();renderRoute();toast(gasReady()?'บันทึกคำขอแล้ว กำลังส่ง Google Sheets...':'บันทึกคำขอไว้ในเครื่องแล้ว');if(gasReady())await sendOne('saveServiceRequest',req)}
+  function saveGasUrl(){var input=document.getElementById('gasUrlInput'),value=input.value.trim();if(!value){localStorage.removeItem(GAS_URL_STORE);renderAll();toast('ล้าง URL แล้ว');return}try{var parsed=new URL(value);if(parsed.protocol!=='https:'||parsed.hostname!=='script.google.com'||!parsed.pathname.includes('/exec'))throw Error('รูปแบบไม่ถูกต้อง')}catch(err){input.focus();toast('กรุณาวาง GAS Web App URL ที่เป็น https://script.google.com/.../exec','error');return}localStorage.setItem(GAS_URL_STORE,value);renderAll();toast('บันทึก GAS Web App URL แล้ว')}
+  function clearGasUrl(){localStorage.removeItem(GAS_URL_STORE);document.getElementById('gasUrlInput').value=GAS_WEB_APP_URL||'';renderAll();toast('ล้าง GAS Web App URL แล้ว')}
+  function init(){renderADL();document.getElementById('date').value=today();document.getElementById('visitDate').value=today();document.getElementById('category').innerHTML=Object.keys(ROUTES).map(function(x){return '<option>'+e(x)+'</option>'}).join('');document.getElementById('gasUrlInput').value=gasUrl();renderResult();renderAll();document.querySelectorAll('.nav').forEach(function(b){b.addEventListener('click',function(){var p=b.dataset.page;document.querySelectorAll('.nav').forEach(function(x){x.classList.remove('active')});b.classList.add('active');document.querySelectorAll('.section').forEach(function(x){x.classList.remove('active')});document.getElementById(p).classList.add('active')})});document.querySelectorAll('.jump').forEach(function(b){b.addEventListener('click',function(){document.querySelector('.nav[data-page="'+b.dataset.go+'"]').click();window.scrollTo({top:0,behavior:'smooth'})})});document.getElementById('screenForm').addEventListener('change',function(ev){if(ADL.some(function(x){return x[0]===ev.target.name}))renderResult()});document.getElementById('calculate').addEventListener('click',function(){var r=renderResult();toast(r.complete?'คำนวณแล้ว: ADL '+r.score+'/20 ('+r.g.name+')':'กรอกคะแนน ADL ให้ครบ 10 กิจกรรมก่อน',r.complete?'':'error')});document.getElementById('screenForm').addEventListener('submit',saveAssessment);document.getElementById('requestForm').addEventListener('submit',saveRequest);document.getElementById('visitForm').addEventListener('submit',saveVisit);document.getElementById('exportCsvBtn').addEventListener('click',exportCSV);document.getElementById('printBtn').addEventListener('click',function(){window.print()});document.getElementById('category').addEventListener('change',renderRoute);document.getElementById('search').addEventListener('input',renderCases);document.getElementById('groupFilter').addEventListener('change',renderCases);document.getElementById('clearFilter').addEventListener('click',function(){document.getElementById('search').value='';document.getElementById('groupFilter').value='';renderCases()});document.getElementById('syncBtn').addEventListener('click',syncAll);document.getElementById('syncNetwork').addEventListener('click',syncAll);document.getElementById('saveGasUrlBtn').addEventListener('click',saveGasUrl);document.getElementById('clearGasUrlBtn').addEventListener('click',clearGasUrl)}
+  init();
+  document.getElementById('locationBtn').addEventListener('click',getLocation);
+  document.getElementById('fitMapBtn').addEventListener('click',fitMap);
+  document.getElementById('backupBtn').addEventListener('click',backup);
+  document.querySelectorAll('.nav[data-page="map"]').forEach(function(button){button.addEventListener('click',function(){setTimeout(renderMap,80)})});
+</script>
+</body>
+</html>
